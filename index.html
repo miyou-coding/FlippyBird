@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FlippyBird - 点击飞行游戏</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            /* 全局防止文本选中 */
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            /* 防止长按出现上下文菜单 */
+            -webkit-touch-callout: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(to bottom, #87CEEB 0%, #98D8E8 100%);
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+
+        #gameContainer {
+            position: relative;
+            width: 400px;
+            height: 600px;
+            background: linear-gradient(to bottom, #87CEEB 0%, #98D8E8 100%);
+            border: 3px solid #333;
+            border-radius: 10px;
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        #bird {
+            position: absolute;
+            width: 40px;
+            height: 30px;
+            background: #FFD700;
+            border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+            left: 50px;
+            top: 250px;
+            transition: transform 0.1s;
+            z-index: 10;
+        }
+
+        #bird::before {
+            content: '';
+            position: absolute;
+            width: 15px;
+            height: 10px;
+            background: #FFA500;
+            border-radius: 50%;
+            right: -5px;
+            top: 10px;
+        }
+
+        #bird::after {
+            content: '';
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: #000;
+            border-radius: 50%;
+            right: 8px;
+            top: 8px;
+        }
+
+        .obstacle {
+            position: absolute;
+            width: 60px;
+            background: #228B22;
+            border: 2px solid #006400;
+        }
+
+        .obstacle-top {
+            top: 0;
+            border-bottom: 4px solid #006400;
+        }
+
+        .obstacle-bottom {
+            bottom: 0;
+            border-top: 4px solid #006400;
+        }
+
+        #score {
+            position: absolute;
+            top: 20px;
+            left: 5px;
+            font-size: 24px;
+            font-weight: bold;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            z-index: 100;
+        }
+
+        #easterEggs {
+            position: absolute;
+            top: 25px;
+            right: 5px;
+            font-size: 18px; /* 增大字号 */
+            font-weight: bold;
+            color: #FFD700;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.7);
+            z-index: 100;
+            text-align: right;
+            line-height: 1.4;
+        }
+
+        .easter-egg-popup {
+            position: absolute;
+            top: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 52px; /* 增大字体 */
+            font-weight: bold;
+            color: #FFD700;
+            text-shadow: 4px 4px 8px rgba(0,0,0,0.9), 0 0 20px rgba(255,215,0,0.8); /* 更强的发光效果 */
+            z-index: 200;
+            animation: easterEggExplosion 1.8s ease-out forwards;
+            pointer-events: none;
+            font-family: 'Arial Black', Arial, sans-serif; /* 更粗的字体 */
+        }
+
+        @keyframes easterEggExplosion {
+            0% {
+                opacity: 0;
+                transform: translateX(-50%) scale(0.1) rotate(-15deg);
+            }
+            15% {
+                opacity: 1;
+                transform: translateX(-50%) scale(1.8) rotate(10deg);
+                text-shadow: 6px 6px 12px rgba(0,0,0,0.9), 0 0 40px rgba(255,215,0,1);
+            }
+            30% {
+                transform: translateX(-50%) scale(0.7) rotate(-5deg);
+                text-shadow: 3px 3px 8px rgba(0,0,0,0.9), 0 0 25px rgba(255,215,0,0.9);
+            }
+            50% {
+                transform: translateX(-50%) scale(1.3) rotate(8deg);
+                text-shadow: 5px 5px 10px rgba(0,0,0,0.9), 0 0 35px rgba(255,215,0,0.95);
+            }
+            70% {
+                transform: translateX(-50%) scale(0.9) rotate(-3deg);
+                text-shadow: 4px 4px 8px rgba(0,0,0,0.9), 0 0 20px rgba(255,215,0,0.8);
+            }
+            85% {
+                transform: translateX(-50%) scale(1.1) rotate(2deg);
+                opacity: 0.8;
+            }
+            100% {
+                opacity: 0;
+                transform: translateX(-50%) scale(0.5) translateY(-50px) rotate(0deg);
+                text-shadow: 2px 2px 4px rgba(0,0,0,0.8), 0 0 10px rgba(255,215,0,0.6);
+            }
+        }
+
+        .bonus-score {
+            position: absolute;
+            top: 180px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 32px; /* 增大字体 */
+            font-weight: bold;
+            color: #FF0000; /* 改为红色 */
+            text-shadow: 3px 3px 6px rgba(0,0,0,0.9), 0 0 15px rgba(255,0,0,0.8); /* 红色发光效果 */
+            z-index: 201;
+            animation: bonusScoreExplosion 1.2s ease-out forwards;
+            pointer-events: none;
+            font-family: 'Arial Black', Arial, sans-serif;
+        }
+
+        @keyframes bonusScoreExplosion {
+            0% {
+                opacity: 0;
+                transform: translateX(-50%) scale(0.2);
+            }
+            30% {
+                opacity: 1;
+                transform: translateX(-50%) scale(1.5);
+                text-shadow: 4px 4px 8px rgba(0,0,0,0.9), 0 0 25px rgba(255,0,0,1);
+            }
+            60% {
+                transform: translateX(-50%) scale(0.8);
+                text-shadow: 2px 2px 4px rgba(0,0,0,0.9), 0 0 15px rgba(255,0,0,0.8);
+            }
+            100% {
+                opacity: 0;
+                transform: translateX(-50%) scale(1.2) translateY(-40px);
+                text-shadow: 1px 1px 2px rgba(0,0,0,0.8), 0 0 5px rgba(255,0,0,0.6);
+            }
+        }
+
+        /* 特殊隐藏彩蛋样式 */
+        .special-easter-egg {
+            font-size: 36px !important;
+            color: #FFD700 !important;
+            text-shadow: 6px 6px 12px rgba(0,0,0,0.9), 0 0 40px rgba(255,68,68,1), 0 0 80px rgba(255,68,68,0.8) !important;
+        }
+
+        @keyframes specialEasterEggExplosion {
+            0% {
+                opacity: 0;
+                transform: translateX(-50%) scale(0.05) rotate(-30deg);
+            }
+            10% {
+                opacity: 1;
+                transform: translateX(-50%) scale(2.2) rotate(20deg);
+                text-shadow: 8px 8px 16px rgba(0,0,0,0.9), 0 0 60px rgba(255,68,68,1), 0 0 120px rgba(255,68,68,0.9);
+            }
+            25% {
+                transform: translateX(-50%) scale(0.6) rotate(-10deg);
+                text-shadow: 4px 4px 8px rgba(0,0,0,0.9), 0 0 30px rgba(255,68,68,0.9);
+            }
+            45% {
+                transform: translateX(-50%) scale(1.8) rotate(15deg);
+                text-shadow: 7px 7px 14px rgba(0,0,0,0.9), 0 0 50px rgba(255,68,68,1);
+            }
+            70% {
+                transform: translateX(-50%) scale(0.8) rotate(-5deg);
+                text-shadow: 5px 5px 10px rgba(0,0,0,0.9), 0 0 25px rgba(255,68,68,0.8);
+            }
+            90% {
+                transform: translateX(-50%) scale(1.2) rotate(3deg);
+                opacity: 0.9;
+            }
+            100% {
+                opacity: 0;
+                transform: translateX(-50%) scale(0.3) translateY(-80px) rotate(0deg);
+                text-shadow: 2px 2px 4px rgba(0,0,0,0.8), 0 0 10px rgba(255,68,68,0.5);
+            }
+        }
+
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            display: none;
+            z-index: 1000;
+            min-width: 350px; /* 增加最小宽度 */
+        }
+
+        #gameOver h2 {
+            margin-bottom: 15px;
+            font-size: 28px;
+        }
+
+        #gameOver p {
+            margin-bottom: 20px;
+            font-size: 18px;
+        }
+
+        #restartBtn {
+            background: #FFD700;
+            color: #333;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        #restartBtn:hover {
+            background: #FFC700;
+        }
+
+        #startScreen {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            z-index: 1000;
+        }
+
+        #startScreen h1 {
+            margin-bottom: 15px;
+            font-size: 32px;
+            color: #FFD700;
+        }
+
+        #startScreen p {
+            margin-bottom: 20px;
+            font-size: 16px;
+        }
+
+        .difficulty-buttons {
+            margin-bottom: 20px;
+        }
+
+        .difficulty-btn {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            margin: 0 5px;
+            font-size: 14px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .difficulty-btn:hover {
+            background: #45a049;
+        }
+
+        .difficulty-btn.active {
+            background: #FFD700;
+            color: #333;
+        }
+
+        #startBtn {
+            background: #FFD700;
+            color: #333;
+            border: none;
+            padding: 12px 24px;
+            font-size: 18px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        #startBtn:hover {
+            background: #FFC700;
+        }
+
+        .cloud {
+            position: absolute;
+            background: white;
+            border-radius: 50px;
+            opacity: 0.7;
+        }
+
+        .cloud::before {
+            content: '';
+            position: absolute;
+            background: white;
+            border-radius: 50px;
+        }
+
+        .cloud::after {
+            content: '';
+            position: absolute;
+            background: white;
+            border-radius: 50px;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <div id="score">得分: 0</div>
+        <div id="easterEggs">AI破局[0] 真诚[0] 利他[0] 聚焦[0]</div>
+
+        <div id="startScreen">
+            <h1>🐦 FlippyBird</h1>
+            <p>点击屏幕控制小鸟飞行<br>避开障碍物，获得高分！</p>
+            <div class="difficulty-buttons">
+                <button class="difficulty-btn active" data-difficulty="veryeasy">超简单</button>
+                <button class="difficulty-btn" data-difficulty="easy">简单</button>
+                <button class="difficulty-btn" data-difficulty="hard">困难</button>
+            </div>
+            <button id="startBtn">开始游戏</button>
+        </div>
+
+        <div id="gameOver">
+            <h2>游戏结束！</h2>
+            <p id="finalScore">最终得分: 0</p>
+            <p style="margin-bottom: 20px; font-size: 16px; color: #FFD700; font-weight: bold;">AI破局：真诚、利他、聚焦</p>
+            <div class="difficulty-buttons">
+                <button class="difficulty-btn" data-difficulty="veryeasy">超简单</button>
+                <button class="difficulty-btn" data-difficulty="easy">简单</button>
+                <button class="difficulty-btn" data-difficulty="hard">困难</button>
+            </div>
+            <p style="margin: 10px 0; font-size: 14px; color: #ccc;">选择难度后重新开始</p>
+            <button id="restartBtn">重新开始</button>
+        </div>
+
+        <div id="bird"></div>
+    </div>
+
+    <script>
+        class FlippyBird {
+            constructor() {
+                this.gameContainer = document.getElementById('gameContainer');
+                this.bird = document.getElementById('bird');
+                this.scoreElement = document.getElementById('score');
+                this.easterEggsElement = document.getElementById('easterEggs');
+                this.gameOverScreen = document.getElementById('gameOver');
+                this.startScreen = document.getElementById('startScreen');
+                this.finalScoreElement = document.getElementById('finalScore');
+                this.startBtn = document.getElementById('startBtn');
+                this.restartBtn = document.getElementById('restartBtn');
+
+                // 难度设置 - 简化为3级
+                this.difficultySettings = {
+                    veryeasy: {
+                        gravity: 0.2,         // 极小的重力，非常缓慢的下降
+                        jumpPower: -6,        // 更小的跳跃力，温和的上升
+                        gap: 250,             // 超宽的通道间隙
+                        obstacleSpeed: 1.5,   // 极慢的障碍物速度
+                        spawnInterval: 3500,  // 超长的生成间隔
+                        tolerance: 12         // 超大的碰撞容错
+                    },
+                    easy: {
+                        gravity: 0.25,        // 更小的重力，下降更缓慢
+                        jumpPower: -7,        // 更小的跳跃力，上升更温和
+                        gap: 220,             // 更宽的通道间隙
+                        obstacleSpeed: 1.8,   // 更慢的障碍物速度
+                        spawnInterval: 3200,  // 更长的生成间隔
+                        tolerance: 8          // 更大的碰撞容错
+                    },
+                    hard: {
+                        gravity: 0.45,
+                        jumpPower: -9,
+                        gap: 150,
+                        obstacleSpeed: 3.0,
+                        spawnInterval: 2000,
+                        tolerance: 3
+                    }
+                };
+
+                this.currentDifficulty = 'veryeasy'; // 默认超简单模式
+                this.loadDifficultySettings();
+
+                this.birdY = 200; // 降低初始位置，给玩家更多上升空间
+                this.birdVelocity = 0;
+                this.obstacles = [];
+                this.score = 0;
+                this.gameRunning = false;
+                this.gameStarted = false;
+
+                // 彩蛋系统
+                this.easterEggs = {
+                    'AI破局': 0,
+                    '真诚': 0,
+                    '利他': 0,
+                    '聚焦': 0,
+                    '洋哥牛逼': 0 // 隐藏彩蛋
+                };
+                this.easterEggTexts = ['AI破局', '真诚', '利他', '聚焦'];
+                this.easterEggScores = {
+                    'AI破局': 1,
+                    '真诚': 3,
+                    '利他': 5,
+                    '聚焦': 2,
+                    '洋哥牛逼': 10 // 隐藏彩蛋最高分数
+                };
+
+                this.init();
+            }
+
+            loadDifficultySettings() {
+                const settings = this.difficultySettings[this.currentDifficulty];
+                this.gravity = settings.gravity;
+                this.jumpPower = settings.jumpPower;
+                this.gap = settings.gap;
+                this.obstacleSpeed = settings.obstacleSpeed;
+                this.spawnInterval = settings.spawnInterval;
+                this.collisionTolerance = settings.tolerance || 5; // 加载碰撞容错
+            }
+
+            init() {
+                this.createClouds();
+                this.setupDifficultyButtons();
+                this.updateDifficultyButtons(); // 初始化难度按钮状态
+                this.startBtn.addEventListener('click', () => this.startGame());
+                this.restartBtn.addEventListener('click', () => this.restartGame());
+                this.gameContainer.addEventListener('click', (e) => {
+                    if (this.gameRunning && e.target !== this.startBtn && e.target !== this.restartBtn) {
+                        this.jump();
+                    }
+                });
+
+                document.addEventListener('keydown', (e) => {
+                    if (e.code === 'Space' && this.gameRunning) {
+                        e.preventDefault();
+                        this.jump();
+                    }
+                });
+            }
+
+            setupDifficultyButtons() {
+                const difficultyButtons = document.querySelectorAll('.difficulty-btn');
+                difficultyButtons.forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        // 移除所有active类
+                        difficultyButtons.forEach(b => b.classList.remove('active'));
+                        // 添加active类到当前按钮
+                        e.target.classList.add('active');
+                        // 设置当前难度
+                        this.currentDifficulty = e.target.dataset.difficulty;
+                        this.loadDifficultySettings();
+
+                        console.log('难度已设置为:', this.currentDifficulty);
+                    });
+                });
+            }
+
+            updateDifficultyButtons() {
+                // 更新所有难度按钮的active状态
+                const difficultyButtons = document.querySelectorAll('.difficulty-btn');
+                difficultyButtons.forEach(btn => {
+                    btn.classList.remove('active');
+                    if (btn.dataset.difficulty === this.currentDifficulty) {
+                        btn.classList.add('active');
+                    }
+                });
+            }
+
+            createClouds() {
+                for (let i = 0; i < 3; i++) {
+                    const cloud = document.createElement('div');
+                    cloud.className = 'cloud';
+                    cloud.style.width = Math.random() * 60 + 40 + 'px';
+                    cloud.style.height = Math.random() * 30 + 20 + 'px';
+                    cloud.style.left = Math.random() * 340 + 'px';
+                    cloud.style.top = Math.random() * 200 + 'px';
+
+                    this.gameContainer.appendChild(cloud);
+                    this.animateCloud(cloud);
+                }
+            }
+
+            animateCloud(cloud) {
+                let cloudX = parseInt(cloud.style.left);
+                const speed = Math.random() * 0.5 + 0.2;
+
+                const moveCloud = () => {
+                    cloudX -= speed;
+                    if (cloudX < -100) {
+                        cloudX = 450;
+                    }
+                    cloud.style.left = cloudX + 'px';
+                    requestAnimationFrame(moveCloud);
+                };
+                moveCloud();
+            }
+
+            startGame() {
+                this.startScreen.style.display = 'none';
+                this.gameStarted = true;
+                this.gameRunning = true;
+                this.gameLoop();
+                this.spawnObstacle();
+            }
+
+            jump() {
+                if (this.gameRunning) {
+                    this.birdVelocity = this.jumpPower;
+                    this.bird.style.transform = 'rotate(-20deg)';
+                    setTimeout(() => {
+                        this.bird.style.transform = 'rotate(0deg)';
+                    }, 200);
+                }
+            }
+
+            gameLoop() {
+                if (!this.gameRunning) return;
+
+                // 更新小鸟位置
+                this.birdVelocity += this.gravity;
+                this.birdY += this.birdVelocity;
+
+                // 限制小鸟在容器内
+                if (this.birdY < 0) {
+                    this.birdY = 0;
+                    this.birdVelocity = 0;
+                }
+                if (this.birdY > 570) {
+                    this.gameOver();
+                    return;
+                }
+
+                this.bird.style.top = this.birdY + 'px';
+
+                // 根据速度旋转小鸟
+                let rotation = this.birdVelocity * 3;
+                rotation = Math.max(-30, Math.min(30, rotation));
+                this.bird.style.transform = `rotate(${rotation}deg)`;
+
+                // 更新障碍物
+                this.updateObstacles();
+
+                // 检测碰撞
+                this.checkCollisions();
+
+                requestAnimationFrame(() => this.gameLoop());
+            }
+
+            spawnObstacle() {
+                if (!this.gameRunning) return;
+
+                const minHeight = 60;
+                const maxHeight = 300;
+                const height = Math.random() * (maxHeight - minHeight) + minHeight;
+
+                const obstacleTop = document.createElement('div');
+                obstacleTop.className = 'obstacle obstacle-top';
+                obstacleTop.style.height = height + 'px';
+                obstacleTop.style.left = '450px'; // 增加初始距离，给玩家更多反应时间
+
+                const obstacleBottom = document.createElement('div');
+                obstacleBottom.className = 'obstacle obstacle-bottom';
+                obstacleBottom.style.height = (600 - height - this.gap) + 'px';
+                obstacleBottom.style.left = '450px'; // 增加初始距离
+
+                this.gameContainer.appendChild(obstacleTop);
+                this.gameContainer.appendChild(obstacleBottom);
+
+                this.obstacles.push({
+                    top: obstacleTop,
+                    bottom: obstacleBottom,
+                    x: 450, // 更新初始位置
+                    passed: false
+                });
+
+                setTimeout(() => this.spawnObstacle(), this.spawnInterval);
+            }
+
+            updateObstacles() {
+                this.obstacles.forEach((obstacle, index) => {
+                    obstacle.x -= this.obstacleSpeed; // 使用动态障碍物速度
+                    obstacle.top.style.left = obstacle.x + 'px';
+                    obstacle.bottom.style.left = obstacle.x + 'px';
+
+                    // 计分
+                    if (!obstacle.passed && obstacle.x < 50) {
+                        obstacle.passed = true;
+                        this.score++;
+                        this.scoreElement.textContent = '得分: ' + this.score;
+
+                        // 60%概率触发彩蛋，但有特殊隐藏彩蛋逻辑
+                        if (Math.random() < 0.6) {
+                            this.triggerEasterEgg();
+                        }
+                    }
+
+                    // 移除屏幕外的障碍物
+                    if (obstacle.x < -60) {
+                        obstacle.top.remove();
+                        obstacle.bottom.remove();
+                        this.obstacles.splice(index, 1);
+                    }
+                });
+            }
+
+            checkCollisions() {
+                const birdRect = this.bird.getBoundingClientRect();
+                const containerRect = this.gameContainer.getBoundingClientRect();
+
+                this.obstacles.forEach(obstacle => {
+                    const topRect = obstacle.top.getBoundingClientRect();
+                    const bottomRect = obstacle.bottom.getBoundingClientRect();
+
+                    if (birdRect.right > topRect.left && birdRect.left < topRect.right) {
+                        // 使用动态碰撞容错值，根据难度设置
+                        const tolerance = this.collisionTolerance;
+                        if (birdRect.top + tolerance < topRect.bottom || birdRect.bottom - tolerance > bottomRect.top) {
+                            this.gameOver();
+                        }
+                    }
+                });
+            }
+
+            triggerEasterEgg() {
+                // 隐藏彩蛋触发逻辑：基于分数的特定条件
+                const currentScore = this.score;
+                let selectedText;
+
+                // 特殊隐藏彩蛋触发条件
+                if (currentScore % 9 === 0) {
+                    // 特殊分数触发隐藏彩蛋
+                    selectedText = '洋哥牛逼';
+                } else if (Math.random() < 0.10 && currentScore > 3) {
+                    selectedText = '洋哥牛逼';
+                } else {
+                    // 正常彩蛋
+                    selectedText = this.easterEggTexts[Math.floor(Math.random() * this.easterEggTexts.length)];
+                }
+
+                const bonusScore = this.easterEggScores[selectedText];
+                const isSpecial = selectedText === '洋哥牛逼';
+
+                // 增加彩蛋计数
+                this.easterEggs[selectedText]++;
+
+                // 显示彩蛋文字（特殊彩蛋有2倍炸裂效果）
+                if (isSpecial) {
+                    this.showSpecialEasterEgg(selectedText);
+                } else {
+                    this.showEasterEggText(selectedText);
+                }
+
+                // 显示额外得分
+                this.showBonusScore(bonusScore, isSpecial);
+
+                // 增加得分
+                this.score += bonusScore;
+                this.scoreElement.textContent = '得分: ' + this.score;
+
+                // 更新彩蛋统计
+                this.updateEasterEggsDisplay();
+            }
+
+            showEasterEggText(text) {
+                const popup = document.createElement('div');
+                popup.className = 'easter-egg-popup';
+                popup.textContent = text;
+                this.gameContainer.appendChild(popup);
+
+                // 动画结束后移除元素
+                setTimeout(() => {
+                    if (popup.parentNode) {
+                        popup.parentNode.removeChild(popup);
+                    }
+                }, 2000);
+            }
+
+            showBonusScore(bonus, isSpecial = false) {
+                const bonusDisplay = document.createElement('div');
+                bonusDisplay.className = isSpecial ? 'bonus-score special-bonus' : 'bonus-score';
+                bonusDisplay.textContent = '+' + bonus;
+
+                if (isSpecial) {
+                    // 特殊彩蛋的额外效果
+                    bonusDisplay.style.fontSize = '48px'; // 更大字体
+                    bonusDisplay.style.color = '#FFD700'; // 深黄色
+                    bonusDisplay.style.textShadow = '4px 4px 8px rgba(0,0,0,0.9), 0 0 30px rgba(255,215,0,1)';
+                }
+
+                this.gameContainer.appendChild(bonusDisplay);
+
+                // 动画结束后移除元素
+                setTimeout(() => {
+                    if (bonusDisplay.parentNode) {
+                        bonusDisplay.parentNode.removeChild(bonusDisplay);
+                    }
+                }, isSpecial ? 2000 : 1200); // 特殊彩蛋显示更久
+            }
+
+            showSpecialEasterEgg(text) {
+                const popup = document.createElement('div');
+                popup.className = 'easter-egg-popup special-easter-egg';
+                popup.textContent = text;
+
+                // 特殊样式 - 1倍炸裂效果（缩小一半）
+                popup.style.fontSize = '36px'; // 缩小到一半大小
+                popup.style.color = '#FFD700'; // 深黄色
+                popup.style.textShadow = '6px 6px 12px rgba(0,0,0,0.9), 0 0 40px rgba(255,215,0,1), 0 0 80px rgba(255,215,0,0.8)';
+                popup.style.animation = 'specialEasterEggExplosion 2.5s ease-out forwards';
+                popup.style.whiteSpace = 'nowrap'; // 防止换行
+
+                this.gameContainer.appendChild(popup);
+
+                // 动画结束后移除元素
+                setTimeout(() => {
+                    if (popup.parentNode) {
+                        popup.parentNode.removeChild(popup);
+                    }
+                }, 2500);
+            }
+
+            updateEasterEggsDisplay() {
+                const displayText = Object.keys(this.easterEggs)
+                    .filter(key => key !== '洋哥牛逼') // 隐藏彩蛋不显示在顶部
+                    .map(key => `${key}[${this.easterEggs[key]}]`)
+                    .join(' ');
+                this.easterEggsElement.textContent = displayText;
+            }
+
+            gameOver() {
+                this.gameRunning = false;
+                this.finalScoreElement.textContent = '最终得分: ' + this.score;
+                // 更新游戏结束界面的难度按钮状态
+                this.updateDifficultyButtons();
+                this.gameOverScreen.style.display = 'block';
+            }
+
+            restartGame() {
+                // 清除所有障碍物
+                this.obstacles.forEach(obstacle => {
+                    obstacle.top.remove();
+                    obstacle.bottom.remove();
+                });
+                this.obstacles = [];
+
+                // 重新加载难度设置（玩家可能在游戏结束时更改了难度）
+                this.loadDifficultySettings();
+
+                // 重置游戏状态
+                this.birdY = 200; // 使用优化后的初始位置
+                this.birdVelocity = 0;
+                this.score = 0;
+                this.scoreElement.textContent = '得分: 0';
+                this.bird.style.top = this.birdY + 'px';
+                this.bird.style.transform = 'rotate(0deg)';
+
+                // 重置彩蛋统计
+                this.easterEggs = { 'AI破局': 0, '真诚': 0, '利他': 0, '聚焦': 0, '洋哥牛逼': 0 };
+                this.updateEasterEggsDisplay();
+
+                this.gameOverScreen.style.display = 'none';
+                this.gameRunning = true;
+
+                this.gameLoop();
+                // 延迟生成第一个障碍物，避免重叠
+                setTimeout(() => this.spawnObstacle(), 1000);
+            }
+        }
+
+        // 启动游戏
+        window.addEventListener('DOMContentLoaded', () => {
+            new FlippyBird();
+        });
+    </script>
+</body>
+</html>
